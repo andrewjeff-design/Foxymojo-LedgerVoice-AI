@@ -48,10 +48,10 @@ Do not push keys beginning with `sk_`, `whsec_`, `sb_secret_`, or an OpenAI proj
 ### 3.2 Apply the schema
 
 1. In Supabase, open **SQL Editor**.
-2. Open `supabase/migrations/0001_initial.sql` from this package.
-3. Paste the entire migration into a new SQL query.
-4. Run it once.
-5. Confirm these tables exist: `workspaces`, `workspace_members`, `customers`, `invoices`, `expenses`, `subscriptions`, `audit_logs`, `tax_rule_sets` and `tax_estimates`.
+2. Open `supabase/migrations/0001_initial.sql` from this package, paste the entire migration into a new SQL query and run it once.
+3. Do the same with `supabase/migrations/0002_ledger.sql`. It must run after `0001`.
+4. Confirm these tables exist: `workspaces`, `workspace_members`, `subscriptions`, `audit_logs`, `ledger_entities`, `ledger_entries`, `ledger_close_marks`, `ledger_close_signoffs` and `workspace_invites`. (`customers`, `invoices` and `expenses` from `0001` are no longer written by the app; the journals in `ledger_entries` replace them.)
+5. Confirm that updating a posted row in `ledger_entries` fails with "Posted and rejected entries are immutable".
 6. Open the table editor and confirm RLS shows as enabled on every public table.
 
 The signup trigger creates four linked records automatically:
@@ -98,18 +98,22 @@ Before real data:
 
 A verified Stripe merchant must be managed by an authorised adult or registered-business representative. Do not use another person's identity or bypass Stripe verification.
 
-### 4.1 Create the plan
+### 4.1 Create the plans
 
 1. Open Stripe in **Test mode**.
-2. Create product: `LedgerVoice Pro`.
-3. Create one recurring monthly price:
-   - Currency: MYR
-   - Amount: RM79.00
-   - Billing period: monthly
-4. Copy its `price_...` ID to `STRIPE_PRICE_ID`.
-5. Copy the test secret key to `STRIPE_SECRET_KEY`.
+2. Create three products, `Ledger VoiceAI Starter`, `Business` and `Group`, each with two recurring MYR prices. Annual is ten months for twelve:
 
-The code applies `trial_period_days: 14` and `payment_method_collection: always`. A card is therefore collected in Checkout, and access is granted only after a verified webhook reports `trialing` or `active`.
+   | Plan | Monthly | Annual | Environment variables |
+   |---|---|---|---|
+   | Starter | RM249 | RM2,490 | `STRIPE_PRICE_STARTER_MONTHLY`, `STRIPE_PRICE_STARTER_ANNUAL` |
+   | Business | RM690 | RM6,900 | `STRIPE_PRICE_BUSINESS_MONTHLY`, `STRIPE_PRICE_BUSINESS_ANNUAL` |
+   | Group | RM1,890 | RM18,900 | `STRIPE_PRICE_GROUP_MONTHLY`, `STRIPE_PRICE_GROUP_ANNUAL` |
+
+3. Copy each `price_...` ID to its variable. The app maps a subscription's price back to its plan, which sets the entity and document limits.
+4. Copy the test secret key to `STRIPE_SECRET_KEY`.
+5. Prices exclude 8% service tax. Configure Stripe Tax or tax rates once your tax agent confirms the treatment.
+
+The code applies `trial_period_days: 14` and `payment_method_collection: if_required`, so the trial starts with no card. Stripe asks for one before the trial ends; with none on file the subscription cancels (`missing_payment_method: cancel`). Access is granted only after a verified webhook reports `trialing` or `active`.
 
 ### 4.2 Configure the customer portal
 
@@ -165,7 +169,12 @@ OPENAI_TEXT_MODEL=gpt-5-mini
 OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ID=price_...
+STRIPE_PRICE_STARTER_MONTHLY=price_...
+STRIPE_PRICE_STARTER_ANNUAL=price_...
+STRIPE_PRICE_BUSINESS_MONTHLY=price_...
+STRIPE_PRICE_BUSINESS_ANNUAL=price_...
+STRIPE_PRICE_GROUP_MONTHLY=price_...
+STRIPE_PRICE_GROUP_ANNUAL=price_...
 RATE_LIMIT_SECRET=use-at-least-32-random-bytes
 SUPPORT_EMAIL=support@yourdomain.com
 ```
@@ -227,7 +236,7 @@ Never weaken browser SSL settings to work around certificate provisioning.
 4. Send a Stripe test event.
 5. Confirm Stripe reports HTTP 200.
 6. Check Supabase `stripe_events` contains the event ID.
-7. Complete Checkout with a Stripe test card.
+7. Sign up, finish onboarding, pick a plan and complete Checkout (no card is needed for the trial).
 8. Confirm the subscriber's `subscriptions.status` becomes `trialing`.
 9. Sign back in and confirm the workspace opens.
 10. Cancel in the customer portal and confirm a later webhook updates the status.
@@ -239,7 +248,7 @@ The browser redirect after Checkout is not proof of payment. Subscriber access m
 Use two accounts, A and B.
 
 1. Activate both in Stripe Test mode.
-2. Account A creates and approves one invoice and one expense.
+2. Account A posts one transaction and issues one invoice from the Capture tab.
 3. Account B must see zero Account A records.
 4. Copy Account A record IDs from an administrator view and attempt to query or modify them while signed in as B. The database must return no row/permission denied.
 5. Use Account A's voice flow. Confirm AI output appears only as a draft.
@@ -276,11 +285,11 @@ These laws are not identical and can change. Hosting a four-country tax workspac
 Only after Sections 8–10 pass:
 
 1. Complete Stripe business verification through the authorised representative.
-2. Re-create or confirm the LedgerVoice product and RM79 monthly price in Live mode.
+2. Re-create or confirm the three products and six MYR prices in Live mode.
 3. Create a Live-mode webhook endpoint.
 4. Replace in Vercel:
    - `STRIPE_SECRET_KEY`
-   - `STRIPE_PRICE_ID`
+   - the six `STRIPE_PRICE_*` variables
    - `STRIPE_WEBHOOK_SECRET`
 5. Keep test and live values clearly separated.
 6. Redeploy Production.

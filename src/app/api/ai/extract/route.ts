@@ -1,66 +1,44 @@
 import { NextResponse } from "next/server";
 import { requireEntitledWorkspace } from "@/lib/auth";
 import { jsonError } from "@/lib/http";
+import { malaysiaToday } from "@/lib/ledger/catalog";
+import { INVOICE_SCHEMA, invoiceInstructions, TX_SCHEMA, txInstructions } from "@/lib/ledger/prompts";
+import { findEntity, loadEntities } from "@/lib/ledger-server";
 import { openai } from "@/lib/openai";
 import { enforceRateLimit } from "@/lib/rate-limit";
-import { extractRequestSchema, financeDraftSchema } from "@/lib/schemas";
+import { extractRequestSchema, invoiceInputSchema, txInputSchema } from "@/lib/schemas";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const currencies = { MY: "MYR", SG: "SGD", AU: "AUD", ID: "IDR" } as const;
-
+/* Words in, fields out. The model never sees the rule engine's decisions and never posts. */
 export async function POST(request: Request) {
   try {
     const context = await requireEntitledWorkspace();
     await enforceRateLimit("ai-extract", context.user.id, 20);
     const input = extractRequestSchema.parse(await request.json());
-    const currentDate = new Date().toISOString().slice(0, 10);
+    const supabase = await createServerSupabaseClient();
+    const entities = await loadEntities(supabase, context.workspaceId);
+    const entity = findEntity(entities, input.entityId);
+    const company = { name: entity.name, base: entity.base, others: entities.filter((e) => e.id !== entity.id).map((e) => e.name) };
+    const today = malaysiaToday();
+    const isTx = input.mode === "tx";
 
     const response = await openai().responses.create({
       model: process.env.OPENAI_TEXT_MODEL || "gpt-5-mini",
       input: [
-        {
-          role: "system",
-          content: [
-            "You convert a small-business voice transcript into a reviewable finance draft.",
-            "Never save, approve, file, pay, submit, or execute anything.",
-            "Extract only facts supported by the transcript. Put ambiguities in warnings.",
-            "Use ISO dates (YYYY-MM-DD). A missing date must be null.",
-            "Do not decide whether an expense is tax deductible and do not give tax advice.",
-            `Today is ${currentDate}. Jurisdiction is ${input.country}; default currency is ${currencies[input.country]}.`
-          ].join(" ")
-        },
-        { role: "user", content: input.transcript }
+        { role: "system", content: isTx ? txInstructions(today, company) : invoiceInstructions(today, company) },
+        { role: "user", content: input.text }
       ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "finance_draft",
-          strict: true,
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["kind", "party", "description", "amount", "currency", "transactionDate", "dueDate", "category", "businessUsePercent", "confidence", "warnings"],
-            properties: {
-              kind: { type: "string", enum: ["invoice", "expense"] },
-              party: { type: "string" },
-              description: { type: "string" },
-              amount: { type: "number", minimum: 0 },
-              currency: { type: "string", enum: ["MYR", "SGD", "AUD", "IDR"] },
-              transactionDate: { type: ["string", "null"] },
-              dueDate: { type: ["string", "null"] },
-              category: { type: "string" },
-              businessUsePercent: { type: "number", minimum: 0, maximum: 100 },
-              confidence: { type: "number", minimum: 0, maximum: 1 },
-              warnings: { type: "array", maxItems: 10, items: { type: "string" } }
-            }
-          }
-        }
-      }
+      text: { format: { type: "json_schema", name: isTx ? "ledger_transaction" : "sales_invoice", strict: true, schema: isTx ? TX_SCHEMA : INVOICE_SCHEMA } }
     });
 
-    if (!response.output_text) return NextResponse.json({ error: "The command could not be structured safely." }, { status: 422 });
-    return NextResponse.json({ draft: financeDraftSchema.parse(JSON.parse(response.output_text)) });
+    if (!response.output_text) return NextResponse.json({ error: "That came back empty. Say it again, a little more plainly." }, { status: 422 });
+    const raw = JSON.parse(response.output_text) as Record<string, unknown>;
+    const confidence = Math.min(1, Math.max(0, Number(raw.confidence) || 0));
+    const fields = isTx ? txInputSchema.safeParse({ ...raw, confidence }) : invoiceInputSchema.safeParse({ ...raw, confidence });
+    if (!fields.success) return NextResponse.json({ error: "That came back garbled. Say it again, a little more plainly." }, { status: 422 });
+    return NextResponse.json({ fields: fields.data });
   } catch (error) {
     return jsonError(error);
   }

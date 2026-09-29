@@ -1,46 +1,74 @@
+/* eslint-disable @next/next/no-img-element -- small static logos, served as-is */
 import Link from "next/link";
+import { LandingPricing } from "@/components/Plans";
 
-const features = [
-  ["Voice to draft", "Speak an invoice or expense. AI structures it without posting anything automatically."],
-  ["Review and approve", "Confirm the customer, amount, dates and business purpose before the record is saved."],
-  ["Private business records", "Every workspace is isolated by PostgreSQL row-level security."],
-  ["Tax-review preparation", "Prepare evidence and planning estimates for MY, SG, AU and ID; filing stays with a qualified professional."]
+const FEATURES: [string, string, string][] = [
+  ["Capture", "Speak, don't type", "Voice or text in three languages. The model only fills in fields — it never decides your tax."],
+  ["Rules", "Malaysian rule engine", "MPERS sections 17, 20, 23, 30 and 33, service tax at 8% and 6%, imported services self-accounted, thresholds watched."],
+  ["Billing", "Invoices by voice", "Say who to bill and for what. You get a numbered invoice with tax, terms and the journal behind it, MyInvois-ready."],
+  ["Reports", "Statements that tie", "Trial balance, P&L, balance sheet and cash flow footed from the journals, each showing its own integrity check."],
+  ["Control", "Approvals and audit trail", "Every entry keeps the words spoken, the rules applied, the version that decided and the name that approved."],
+  ["Group", "Multi-entity and FX", "Mirror entries between companies, elimination tags, translation to your reporting currency, Bursa diligence flags."]
 ];
 
 export default function Home() {
   return (
     <main>
-      <header className="nav wrap">
-        <Link className="brand" href="/"><span>LV</span> LedgerVoice AI</Link>
-        <nav><a href="#features">Features</a><a href="#security">Security</a><a href="#pricing">Pricing</a></nav>
-        <Link className="button ghost" href="/login">Sign in</Link>
-      </header>
+      <div className="wrap">
+        <nav className="topnav">
+          <img className="logo-wide" alt="Foxymojo" src="/foxymojo-wide.png" />
+          <div className="navlinks"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#trust">How it works</a></div>
+          <div className="spacer" />
+          <Link className="btn small ghost" href="/login">Sign in</Link>
+          <Link className="btn small primary" href="/login?mode=signup">Start free trial</Link>
+        </nav>
 
-      <section className="hero wrap">
-        <div>
-          <p className="eyebrow">FINANCE ADMIN, SPOKEN INTO ORDER</p>
-          <h1>Your business numbers,<br /><em>without the admin pile-up.</em></h1>
-          <p className="lead">Create invoices, capture expenses, monitor income and prepare tax-review working papers from a controlled voice workflow.</p>
-          <div className="actions"><Link className="button primary" href="/login">Start 14-day trial</Link><a className="button ghost" href="#features">See how it works</a></div>
-          <p className="fine">Card required · RM79/month after trial · Cancel anytime</p>
+        <header className="lead">
+          <p className="eyebrow">Ledger VoiceAI · a Foxymojo product</p>
+          <h1>Say it once. It posts correctly.</h1>
+          <p className="sub">Malaysian bookkeeping you can talk to. Speak a transaction or an invoice in English, Bahasa Melayu or 中文 — the agent fills the fields, a Malaysian rule engine decides the accounting and the tax, and nothing posts until someone named approves it.</p>
+          <div className="cta-row">
+            <Link className="btn primary" href="/login?mode=signup">Start the 14-day trial</Link>
+            <Link className="btn ghost" href="/demo">Explore with demo data</Link>
+          </div>
+          <p className="trust"><span>MPERS · SST · MyInvois</span><span>Multi-entity with FX</span><span>Audit trail on every entry</span><span>No card to start</span></p>
+        </header>
+
+        <div className="band" id="features">
+          <h2>What it does</h2>
+          <p className="sub">Six things a Malaysian SME actually needs, and nothing it doesn&apos;t.</p>
+          <div className="grid3">
+            {FEATURES.map(([tag, title, body]) => (
+              <div className="fcard" key={title}><span className="tagline">{tag}</span><h3>{title}</h3><p>{body}</p></div>
+            ))}
+          </div>
         </div>
-        <div className="hero-card">
-          <div className="voice-demo"><b>●</b><span>“Create an invoice for Northstar Advisory...”</span></div>
-          <div className="metric-grid"><article><small>INCOME</small><strong>RM18,600</strong></article><article><small>EXPENSES</small><strong>RM7,120</strong></article><article><small>PROFIT</small><strong>RM11,480</strong></article></div>
-          <div className="draft-demo"><small>DRAFT — REVIEW REQUIRED</small><b>Cyber risk workshop</b><span>Northstar Advisory · RM4,800</span><button>Approve and save</button></div>
+
+        <div className="band" id="trust">
+          <h2>How it works</h2>
+          <div className="steps3">
+            <div><strong>Say it</strong><p>&ldquo;Invoice Klinik Mawar RM8,000 for the September retainer, 30 days.&rdquo;</p></div>
+            <div><strong>Check it</strong><p>The agent shows the journal, the tax, the rules it used and anything it is unsure about.</p></div>
+            <div><strong>Approve it</strong><p>You put your name to it. It posts, the reports move, the audit trail keeps the evidence.</p></div>
+          </div>
         </div>
-      </section>
 
-      <section className="section wrap" id="features">
-        <p className="eyebrow">ONE CONTROLLED WORKFLOW</p><h2>AI prepares. You approve.</h2>
-        <div className="feature-grid">{features.map(([title, body], index) => <article key={title}><span>0{index + 1}</span><h3>{title}</h3><p>{body}</p></article>)}</div>
-      </section>
+        <div className="band" id="pricing">
+          <h2>Pricing</h2>
+          <p className="sub">Per company, billed in ringgit. Fourteen days free, no card. Prices exclude 8% service tax.</p>
+          <LandingPricing />
+          <p className="note" style={{ marginTop: 10 }}>Voice capture, the Malaysian rule pack, reports and the audit trail are in every plan. Usage above the included documents is billed at the add-on rate, or upgrade whenever it makes sense.</p>
+        </div>
 
-      <section className="security-band" id="security"><div className="wrap security-grid"><div><p className="eyebrow">SECURITY BY DEFAULT</p><h2>Subscriber data stays separated.</h2><p>Authentication, server-side authorization, encrypted transport, signed payment webhooks, audit logs and database row-level security are included in the deployment package.</p></div><ul><li>No financial record is saved from voice without approval.</li><li>Stripe stores payment details; LedgerVoice does not.</li><li>Secret keys stay on the server and outside source control.</li><li>Tax outputs remain reviewable planning estimates.</li></ul></div></section>
-
-      <section className="section wrap pricing" id="pricing"><div><p className="eyebrow">FOUNDING PLAN</p><h2>Simple launch pricing.</h2><p>Full finance workspace for solo operators and small teams.</p></div><article><div><small>RM</small><strong>79</strong><span>/month</span></div><p>14-day trial with card required.</p><ul><li>Voice invoice and expense drafts</li><li>Monthly and yearly reporting</li><li>Four-country tax review workspaces</li><li>CSV-ready data structure</li></ul><Link className="button primary" href="/login">Start free trial</Link></article></section>
-
-      <footer className="footer wrap"><b>LedgerVoice AI</b><span>Planning estimates only. Not tax, legal or accounting advice.</span><small>© 2026 LedgerVoice AI</small></footer>
+        <footer className="foot">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <img className="logo-mark" alt="Foxymojo" src="/foxymojo-mark.png" />
+            <span className="note">Ledger VoiceAI is a Foxymojo product. Foxymojo PLT, Malaysia.</span>
+          </div>
+          <p>Accounts are protected by row-level security, payments are handled by Stripe, and every posted entry is immutable. MyInvois submission needs your own LHDN credentials and is not switched on yet.</p>
+          <p>Rules as at 24 Sep 2026. Not tax advice: confirm every treatment with your tax agent.</p>
+        </footer>
+      </div>
     </main>
   );
 }

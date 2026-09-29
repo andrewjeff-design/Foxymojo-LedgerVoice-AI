@@ -1,30 +1,28 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { getAuthenticatedUser, requireWorkspaceContext } from "@/lib/auth";
-import DashboardClient from "./dashboard-client";
-import { signOut } from "./actions";
+import LedgerApp from "@/components/ledger/LedgerApp";
+import { getAuthenticatedUser, isEntitled, requireWorkspaceContext } from "@/lib/auth";
+import { malaysiaToday, planById, trialDaysLeft } from "@/lib/ledger/catalog";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   if (!(await getAuthenticatedUser())) redirect("/login");
   const context = await requireWorkspaceContext();
-  const entitled = new Set(["trialing", "active"]).has(context.subscriptionStatus);
+  const supabase = await createServerSupabaseClient();
+  const { count } = await supabase.from("ledger_entities").select("id", { count: "exact", head: true }).eq("workspace_id", context.workspaceId);
+  /* set up the company first, then the plan, then the books */
+  if (!count) redirect("/onboarding");
+  if (!isEntitled(context.subscriptionStatus)) redirect("/plans");
+
+  const plan = planById(context.plan);
+  const trialDays = context.subscriptionStatus === "trialing" ? trialDaysLeft(context.trialEndsAt, malaysiaToday()) : null;
+  const planLabel = plan ? (trialDays !== null ? plan.name + " · trial, " + trialDays + "d" : plan.name) : "trial";
 
   return (
-    <main className="dashboard-shell">
-      <header className="dashboard-nav">
-        <Link className="brand" href="/"><span>LV</span> LedgerVoice AI</Link>
-        <div><span>{context.workspaceName}</span><form action={signOut}><button className="link-button">Sign out</button></form></div>
-      </header>
-      {entitled ? (
-        <DashboardClient country={context.country} currency={context.currency} />
-      ) : (
-        <section className="subscription-gate">
-          <div><p className="eyebrow">LEDGERVOICE PRO</p><h1>Activate your private workspace.</h1><p>Add a card securely through Stripe. Your RM79/month subscription starts after the 14-day trial.</p><ul><li>No charge today</li><li>Cancel through the billing portal</li><li>Payment details stay with Stripe</li></ul></div>
-          <form action="/api/stripe/checkout" method="post"><button className="button primary">Start trial in Stripe</button></form>
-        </section>
-      )}
+    <main>
+      <LedgerApp mode="live" title={context.workspaceName} planLabel={planLabel} person={context.user.name || context.user.email}
+        usage={plan ? { items: plan.items, planName: plan.name } : null} readOnly={context.role === "viewer"} />
     </main>
   );
 }
