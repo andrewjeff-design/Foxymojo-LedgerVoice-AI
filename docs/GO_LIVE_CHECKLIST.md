@@ -5,7 +5,7 @@ Complete in test mode first. Add the responsible person's initials and date to e
 ## Business and legal
 
 - [ ] Operating entity and authorised merchant representative verified.
-- [ ] RM79/month and 14-day card-required trial wording approved.
+- [ ] Plan prices (Starter RM249, Business RM690, Group RM1,890 a month; annual at ten months) and the 14-day no-card trial wording approved.
 - [ ] Terms, privacy notice, cancellation/refund policy and support contact published.
 - [ ] Data map, retention schedule, subprocessors and cross-border review completed.
 - [ ] Tax claims reviewed; no feature is described as automatic filing or guaranteed optimisation.
@@ -20,11 +20,12 @@ Complete in test mode first. Add the responsible person's initials and date to e
 
 ## Database
 
-- [ ] Migration applied successfully in production.
+- [ ] Migrations `0001` and `0002` applied successfully in production.
 - [ ] RLS enabled on all public customer-data tables.
 - [ ] Two-account tenant-isolation test passed.
 - [ ] Backup schedule recorded and restore drill passed.
-- [ ] Audit logs created for approved invoices and expenses.
+- [ ] Audit logs created for every posted, rejected and drafted ledger entry, close tick and sign-off.
+- [ ] Posted ledger entries cannot be updated or deleted (immutability trigger tested).
 
 ## Authentication
 
@@ -36,8 +37,8 @@ Complete in test mode first. Add the responsible person's initials and date to e
 
 ## Billing
 
-- [ ] Stripe product/price is exactly MYR 79 monthly.
-- [ ] Checkout requires a card and creates a 14-day trial.
+- [ ] Six Stripe prices exist in MYR and each maps to the right `STRIPE_PRICE_*` variable.
+- [ ] Checkout starts a 14-day trial with no card, and a trial with no card on file cancels at the end.
 - [ ] Webhook signature verification tested.
 - [ ] Trialing/active access tested.
 - [ ] Cancellation, failed payment and billing portal tested.

@@ -12,8 +12,8 @@ export async function POST() {
     const context = await requireWorkspaceContext();
     const supabase = await createServerSupabaseClient();
     const { data } = await supabase.from("subscriptions").select("stripe_customer_id").eq("workspace_id", context.workspaceId).single();
-    if (!data?.stripe_customer_id) return NextResponse.redirect(`${appUrl()}/dashboard?billing=no-customer`, 303);
-    const session = await stripe().billingPortal.sessions.create({ customer: data.stripe_customer_id, return_url: `${appUrl()}/dashboard` });
+    if (!data?.stripe_customer_id) return NextResponse.redirect(`${appUrl()}/plans?billing=no-customer`, 303);
+    const session = await stripe().billingPortal.sessions.create({ customer: data.stripe_customer_id, return_url: `${appUrl()}/settings` });
     return NextResponse.redirect(session.url, 303);
   } catch (error) { return jsonError(error); }
 }

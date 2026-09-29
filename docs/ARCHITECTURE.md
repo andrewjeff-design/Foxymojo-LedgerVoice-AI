@@ -29,7 +29,11 @@ flowchart LR
   H --> P[Approved record]
 ```
 
-No model call writes to the database. Only the explicit `Approve and save` request reaches the record API.
+No model call writes to the database. The model reads words into fields (`/api/ai/extract`); the browser previews the Malaysian rule engine's proposal; only a named person's `Approve and post` reaches `/api/ledger/entries`, where the server re-runs the same rule engine (`src/lib/ledger/rules.ts`) and stores the journal it produces. The browser never supplies journal lines.
+
+Posted and rejected entries are immutable (a database trigger enforces it). Bank-statement lines become drafts, which a person then approves or rejects. Reports, the SST-02 working, receivables ageing, the month-end close, the ledger exports and the MyInvois document are all computed from the posted journals by pure functions in `src/lib/ledger/`, covered by `npm run test:unit`.
+
+The public `/demo` runs the same engine entirely in the browser against seeded books, with no account and no model.
 
 ## Billing workflow
 
